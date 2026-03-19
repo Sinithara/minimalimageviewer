@@ -304,5 +304,7 @@ inline void SecureZeroByteVector(std::vector<BYTE>& v) {
     }
 }
 
+// Clean up current image memory (pixels, COM objects, bitmaps) — called on every image change
+void CleanupCurrentImage();
 // Wipe all image data from memory (pixels, COM objects, paths, metadata, derived data)
 void CleanupImageData();

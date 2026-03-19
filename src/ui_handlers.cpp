@@ -1478,59 +1478,64 @@ void HandleCopy() {
 }
 
 void HandlePaste() {
-    if (OpenClipboard(g_ctx.hWnd)) {
-        if (IsClipboardFormatAvailable(CF_HDROP)) {
-            HANDLE hData = GetClipboardData(CF_HDROP);
-            if (hData) {
-                HDROP hDrop = (HDROP)hData;
-                wchar_t filePath[MAX_PATH];
-                if (DragQueryFileW(hDrop, 0, filePath, MAX_PATH)) {
-                    LoadImageFromFile(filePath);
-                }
-            }
-        }
-        else if (IsClipboardFormatAvailable(CF_BITMAP) || IsClipboardFormatAvailable(CF_DIB)) {
-            HBITMAP hBitmap = (HBITMAP)GetClipboardData(CF_BITMAP);
-            if (hBitmap) {
-                CriticalSectionLock lock(g_ctx.wicMutex);
+    if (!OpenClipboard(g_ctx.hWnd)) return;
 
-                ComPtr<IWICBitmap> wicBitmap;
-                HRESULT hr = g_ctx.wicFactory->CreateBitmapFromHBITMAP(hBitmap, NULL, WICBitmapUseAlpha, &wicBitmap);
+    // Check format and extract file path while clipboard is open
+    bool hasFile = IsClipboardFormatAvailable(CF_HDROP) != 0;
+    bool hasBitmap = (!hasFile) && (IsClipboardFormatAvailable(CF_BITMAP) || IsClipboardFormatAvailable(CF_DIB));
+    wchar_t filePath[MAX_PATH] = { 0 };
+
+    if (hasFile) {
+        HANDLE hData = GetClipboardData(CF_HDROP);
+        if (hData) {
+            DragQueryFileW((HDROP)hData, 0, filePath, MAX_PATH);
+        }
+        if (!filePath[0]) hasFile = false;
+    }
+    CloseClipboard();
+
+    if (hasFile) {
+        // LoadImageFromFile calls CleanupCurrentImage internally
+        LoadImageFromFile(filePath);
+        return;
+    }
+
+    if (hasBitmap) {
+        // Clean up the previous image's memory before pasting the new one
+        CleanupCurrentImage();
+
+        if (!OpenClipboard(g_ctx.hWnd)) return;
+        HBITMAP hBitmap = (HBITMAP)GetClipboardData(CF_BITMAP);
+        if (hBitmap) {
+            CriticalSectionLock lock(g_ctx.wicMutex);
+
+            ComPtr<IWICBitmap> wicBitmap;
+            HRESULT hr = g_ctx.wicFactory->CreateBitmapFromHBITMAP(hBitmap, NULL, WICBitmapUseAlpha, &wicBitmap);
+
+            if (SUCCEEDED(hr)) {
+                ComPtr<IWICFormatConverter> converter;
+                hr = g_ctx.wicFactory->CreateFormatConverter(&converter);
 
                 if (SUCCEEDED(hr)) {
-                    ComPtr<IWICFormatConverter> converter;
-                    hr = g_ctx.wicFactory->CreateFormatConverter(&converter);
+                    hr = converter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeCustom);
 
                     if (SUCCEEDED(hr)) {
-                        hr = converter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeCustom);
+                        g_ctx.wicConverter = converter;
+                        g_ctx.wicConverterOriginal = converter;
 
-                        if (SUCCEEDED(hr)) {
-                            // reset state for new pasted image
-                            g_ctx.wicConverter = converter;
-                            g_ctx.wicConverterOriginal = converter;
-                            g_ctx.d2dBitmap = nullptr;
-                            g_ctx.animationD2DBitmaps.clear();
-                            g_ctx.animationFrameConverters.clear();
-                            g_ctx.animationFrameDelays.clear();
-                            g_ctx.isAnimated = false;
+                        // clear file context
+                        g_ctx.imageFiles.clear();
+                        g_ctx.currentImageIndex = -1;
+                        g_ctx.currentDirectory = L"";
+                        g_ctx.loadingFilePath = L"Clipboard Image";
+                        g_ctx.originalContainerFormat = GUID_ContainerFormatPng;
 
-                            // clear file context
-                            g_ctx.imageFiles.clear();
-                            g_ctx.currentImageIndex = -1;
-                            g_ctx.currentDirectory = L"";
-                            g_ctx.loadingFilePath = L"Clipboard Image";
-                            g_ctx.originalContainerFormat = GUID_ContainerFormatPng;
+                        g_ctx.zoomFactor = 1.0f;
+                        g_ctx.offsetX = 0;
+                        g_ctx.offsetY = 0;
 
-                            g_ctx.zoomFactor = 1.0f;
-                            g_ctx.offsetX = 0;
-                            g_ctx.offsetY = 0;
-
-                            // stop animations
-                            KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
-
-                            SetWindowTextW(g_ctx.hWnd, L"Clipboard Image");
-                            InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
-                        }
+                        SetWindowTextW(g_ctx.hWnd, L"Clipboard Image");
+                        InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
                     }
                 }
             }

@@ -176,7 +176,8 @@ std::vector<std::wstring> ScanDirectory(IWICImagingFactory* pFactory, const std:
 }
 
 void LoadImageFromFile(const std::wstring& filePath, bool startAtEnd) {
-    CleanupPreloadingThreads();
+    // Fully clean up the previous image's memory before loading a new one
+    CleanupCurrentImage();
     g_ctx.cancelPreloading = false;
 
     int mySeqId = ++g_ctx.loadSequenceId;
@@ -184,27 +185,6 @@ void LoadImageFromFile(const std::wstring& filePath, bool startAtEnd) {
     g_ctx.isLoading = true;
     g_ctx.loadingFilePath = filePath;
     g_ctx.startAtEnd = startAtEnd;
-
-    {
-        CriticalSectionLock lock(g_ctx.wicMutex);
-        g_ctx.wicConverter = nullptr;
-        g_ctx.wicConverterOriginal = nullptr;
-        g_ctx.d2dBitmap = nullptr;
-        g_ctx.animationD2DBitmaps.clear();
-        g_ctx.isAnimated = false;
-        g_ctx.animationFrameConverters.clear();
-        g_ctx.animationFrameDelays.clear();
-        g_ctx.currentAnimationFrame = 0;
-        g_ctx.originalContainerFormat = GUID_NULL;
-
-        for (auto& frame : g_ctx.stagedFrames) {
-            SecureZeroByteVector(frame);
-        }
-        g_ctx.stagedFrames.clear();
-        g_ctx.stagedDelays.clear();
-        g_ctx.stagedWidth = 0;
-        g_ctx.stagedHeight = 0;
-    }
     g_ctx.currentFilePathOverride.clear();
 
     // Check if directory changed
@@ -460,20 +440,8 @@ void OnDirReady(int seqId) {
 
 // Fallback  handler
 void FinalizeImageLoad(bool success, int foundIndex) {
-    g_ctx.isLoading = false;
-    KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
-
-    {
-        CriticalSectionLock lock(g_ctx.wicMutex);
-        g_ctx.d2dBitmap = nullptr;
-        g_ctx.animationD2DBitmaps.clear();
-        g_ctx.wicConverter = nullptr;
-        g_ctx.wicConverterOriginal = nullptr;
-        for (auto& frame : g_ctx.stagedFrames) {
-            SecureZeroByteVector(frame);
-        }
-        g_ctx.stagedFrames.clear();
-    }
+    // Fully clean up the previous image's memory
+    CleanupCurrentImage();
 
     if (success) {
         g_ctx.currentImageIndex = foundIndex;

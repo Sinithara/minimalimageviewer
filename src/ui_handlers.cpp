@@ -1400,7 +1400,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             GetWindowRect(g_ctx.hWnd, &g_ctx.savedRect);
         }
         WriteSettings(g_ctx.settingsPath, g_ctx.savedRect, g_ctx.startFullScreen, g_ctx.enforceSingleInstance, g_ctx.alwaysOnTop);
-        CleanupLoadingThread();
+        CleanupImageData();
         DiscardDeviceResources();
         PostQuitMessage(0);
         break;
@@ -1426,16 +1426,7 @@ void DeleteCurrentImage() {
         g_ctx.imageFiles.erase(g_ctx.imageFiles.begin() + g_ctx.currentImageIndex);
 
         if (g_ctx.imageFiles.empty()) {
-            g_ctx.currentImageIndex = -1;
-            {
-                CriticalSectionLock lock(g_ctx.wicMutex);
-                g_ctx.wicConverter = nullptr;
-                g_ctx.wicConverterOriginal = nullptr;
-                g_ctx.d2dBitmap = nullptr;
-                g_ctx.loadingFilePath = L"";
-            }
-            InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
-            SetWindowTextW(g_ctx.hWnd, L"Minimal Image Viewer");
+            CleanupImageData();
         }
         else {
             if (g_ctx.currentImageIndex >= static_cast<int>(g_ctx.imageFiles.size())) {

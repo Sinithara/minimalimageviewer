@@ -197,6 +197,9 @@ void LoadImageFromFile(const std::wstring& filePath, bool startAtEnd) {
         g_ctx.currentAnimationFrame = 0;
         g_ctx.originalContainerFormat = GUID_NULL;
 
+        for (auto& frame : g_ctx.stagedFrames) {
+            SecureZeroByteVector(frame);
+        }
         g_ctx.stagedFrames.clear();
         g_ctx.stagedDelays.clear();
         g_ctx.stagedWidth = 0;
@@ -408,6 +411,9 @@ void OnImageReady(bool success, int seqId) {
         }
 
 
+        for (auto& frame : g_ctx.stagedFrames) {
+            SecureZeroByteVector(frame);
+        }
         g_ctx.stagedFrames.clear();
         g_ctx.stagedDelays.clear();
 
@@ -463,6 +469,9 @@ void FinalizeImageLoad(bool success, int foundIndex) {
         g_ctx.animationD2DBitmaps.clear();
         g_ctx.wicConverter = nullptr;
         g_ctx.wicConverterOriginal = nullptr;
+        for (auto& frame : g_ctx.stagedFrames) {
+            SecureZeroByteVector(frame);
+        }
         g_ctx.stagedFrames.clear();
     }
 

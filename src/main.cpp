@@ -53,7 +53,7 @@ void SetActualSize() {
     InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
 }
 
-void CleanupImageData() {
+void CleanupCurrentImage() {
     // A. Stop background threads and timers
     CleanupLoadingThread();
     KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
@@ -92,8 +92,22 @@ void CleanupImageData() {
     g_ctx.currentAnimationFrame = 0;
     g_ctx.isAnimated = false;
 
-    // F. Securely zero all file path strings
+    // F. Securely zero the loading file path
     SecureZeroWString(g_ctx.loadingFilePath);
+
+    // G. Container format
+    g_ctx.originalContainerFormat = GUID_NULL;
+
+    // H. Loading state
+    g_ctx.isLoading = false;
+    g_ctx.lastWriteTime = { 0 };
+}
+
+void CleanupImageData() {
+    // Clean up all image memory (pixels, bitmaps, converters)
+    CleanupCurrentImage();
+
+    // Securely zero all file path strings
     for (auto& path : g_ctx.imageFiles) {
         SecureZeroWString(path);
     }
@@ -109,19 +123,18 @@ void CleanupImageData() {
     g_ctx.currentImageIndex = -1;
     g_ctx.stagedFoundIndex = -1;
 
-    // G. Eyedropper / color picker derived data
+    // Eyedropper / color picker derived data
     g_ctx.hoveredColor = 0;
     SecureZeroWString(g_ctx.colorStringRgb);
     SecureZeroWString(g_ctx.colorStringHex);
     g_ctx.didCopyColor = false;
     g_ctx.isEyedropperActive = false;
 
-    // H. OCR message
+    // OCR message
     SecureZeroWString(g_ctx.ocrMessage);
     g_ctx.isOcrMessageVisible = false;
 
-    // I. Edit state
-    g_ctx.originalContainerFormat = GUID_NULL;
+    // Edit state
     g_ctx.preloadedNextFormat = GUID_NULL;
     g_ctx.preloadedPrevFormat = GUID_NULL;
     g_ctx.brightness = 0.0f;
@@ -145,15 +158,13 @@ void CleanupImageData() {
     g_ctx.ocrStartPoint = { 0 };
     g_ctx.ocrRectWindow = { 0 };
 
-    // J. View state
+    // View state
     g_ctx.zoomFactor = 1.0f;
     g_ctx.offsetX = 0.0f;
     g_ctx.offsetY = 0.0f;
     g_ctx.isOsdVisible = false;
-    g_ctx.isLoading = false;
-    g_ctx.lastWriteTime = { 0 };
 
-    // K. Window title — remove file path
+    // Window title — remove file path
     if (g_ctx.hWnd) {
         SetWindowTextW(g_ctx.hWnd, L"Minimal Image Viewer");
         InvalidateRect(g_ctx.hWnd, nullptr, FALSE);

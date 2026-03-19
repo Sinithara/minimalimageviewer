@@ -14,6 +14,9 @@ public:
             ptr->AddRef();
         }
     }
+    ComPtr(ComPtr<T>&& other) noexcept : ptr(other.ptr) {
+        other.ptr = nullptr;
+    }
     ~ComPtr() {
         if (ptr) {
             ptr->Release();
@@ -46,6 +49,16 @@ public:
     }
     ComPtr<T>& operator=(const ComPtr<T>& other) {
         return *this = other.ptr;
+    }
+    ComPtr<T>& operator=(ComPtr<T>&& other) noexcept {
+        if (this != &other) {
+            if (ptr) {
+                ptr->Release();
+            }
+            ptr = other.ptr;
+            other.ptr = nullptr;
+        }
+        return *this;
     }
     operator bool() const {
         return ptr != nullptr;

@@ -117,6 +117,7 @@ void DiscardDeviceResources() {
     g_ctx.ocrMessageBrush = nullptr;
     g_ctx.ocrMessageBgBrush = nullptr;
     g_ctx.animationD2DBitmaps.clear();
+    g_ctx.animationD2DBitmaps.shrink_to_fit();
 }
 
 static void DrawOsdOverlay(ID2D1HwndRenderTarget* renderTarget) {

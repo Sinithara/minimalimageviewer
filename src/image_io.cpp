@@ -191,9 +191,12 @@ void LoadImageFromFile(const std::wstring& filePath, bool startAtEnd) {
         g_ctx.wicConverterOriginal = nullptr;
         g_ctx.d2dBitmap = nullptr;
         g_ctx.animationD2DBitmaps.clear();
+        g_ctx.animationD2DBitmaps.shrink_to_fit();
         g_ctx.isAnimated = false;
         g_ctx.animationFrameConverters.clear();
+        g_ctx.animationFrameConverters.shrink_to_fit();
         g_ctx.animationFrameDelays.clear();
+        g_ctx.animationFrameDelays.shrink_to_fit();
         g_ctx.currentAnimationFrame = 0;
         g_ctx.originalContainerFormat = GUID_NULL;
 
@@ -201,7 +204,9 @@ void LoadImageFromFile(const std::wstring& filePath, bool startAtEnd) {
             SecureZeroByteVector(frame);
         }
         g_ctx.stagedFrames.clear();
+        g_ctx.stagedFrames.shrink_to_fit();
         g_ctx.stagedDelays.clear();
+        g_ctx.stagedDelays.shrink_to_fit();
         g_ctx.stagedWidth = 0;
         g_ctx.stagedHeight = 0;
     }
@@ -415,7 +420,9 @@ void OnImageReady(bool success, int seqId) {
             SecureZeroByteVector(frame);
         }
         g_ctx.stagedFrames.clear();
+        g_ctx.stagedFrames.shrink_to_fit();
         g_ctx.stagedDelays.clear();
+        g_ctx.stagedDelays.shrink_to_fit();
 
         g_ctx.isLoading = false;
 
@@ -467,13 +474,24 @@ void FinalizeImageLoad(bool success, int foundIndex) {
         CriticalSectionLock lock(g_ctx.wicMutex);
         g_ctx.d2dBitmap = nullptr;
         g_ctx.animationD2DBitmaps.clear();
+        g_ctx.animationD2DBitmaps.shrink_to_fit();
         g_ctx.wicConverter = nullptr;
         g_ctx.wicConverterOriginal = nullptr;
+        g_ctx.animationFrameConverters.clear();
+        g_ctx.animationFrameConverters.shrink_to_fit();
         for (auto& frame : g_ctx.stagedFrames) {
             SecureZeroByteVector(frame);
         }
         g_ctx.stagedFrames.clear();
+        g_ctx.stagedFrames.shrink_to_fit();
+        g_ctx.stagedDelays.clear();
+        g_ctx.stagedDelays.shrink_to_fit();
     }
+
+    g_ctx.animationFrameDelays.clear();
+    g_ctx.animationFrameDelays.shrink_to_fit();
+    g_ctx.isAnimated = false;
+    g_ctx.currentAnimationFrame = 0;
 
     if (success) {
         g_ctx.currentImageIndex = foundIndex;

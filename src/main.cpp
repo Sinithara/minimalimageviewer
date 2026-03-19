@@ -57,6 +57,8 @@ void CleanupCurrentImage() {
     // A. Stop background threads and timers
     CleanupLoadingThread();
     KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
+    KillTimer(g_ctx.hWnd, OCR_MESSAGE_TIMER_ID);
+    KillTimer(g_ctx.hWnd, AUTO_REFRESH_TIMER_ID);
 
     {
         CriticalSectionLock lock(g_ctx.wicMutex);

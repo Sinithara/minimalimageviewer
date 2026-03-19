@@ -1490,9 +1490,13 @@ void HandlePaste() {
         if (hData) {
             DragQueryFileW((HDROP)hData, 0, filePath, MAX_PATH);
         }
-        if (!filePath[0]) hasFile = false;
-    }
-    CloseClipboard();
+        else if (IsClipboardFormatAvailable(CF_BITMAP) || IsClipboardFormatAvailable(CF_DIB)) {
+            HBITMAP hBitmap = (HBITMAP)GetClipboardData(CF_BITMAP);
+            if (hBitmap) {
+                // Stop any in-progress loading before modifying shared state
+                CleanupLoadingThread();
+
+                CriticalSectionLock lock(g_ctx.wicMutex);
 
     if (hasFile) {
         // LoadImageFromFile calls CleanupCurrentImage internally
@@ -1523,19 +1527,50 @@ void HandlePaste() {
                         g_ctx.wicConverter = converter;
                         g_ctx.wicConverterOriginal = converter;
 
-                        // clear file context
-                        g_ctx.imageFiles.clear();
-                        g_ctx.currentImageIndex = -1;
-                        g_ctx.currentDirectory = L"";
-                        g_ctx.loadingFilePath = L"Clipboard Image";
-                        g_ctx.originalContainerFormat = GUID_ContainerFormatPng;
+                        if (SUCCEEDED(hr)) {
+                            // reset state for new pasted image
+                            g_ctx.wicConverter = converter;
+                            g_ctx.wicConverterOriginal = converter;
+                            g_ctx.d2dBitmap = nullptr;
+                            g_ctx.animationD2DBitmaps.clear();
+                            g_ctx.animationD2DBitmaps.shrink_to_fit();
+                            g_ctx.animationFrameConverters.clear();
+                            g_ctx.animationFrameConverters.shrink_to_fit();
+                            g_ctx.animationFrameDelays.clear();
+                            g_ctx.animationFrameDelays.shrink_to_fit();
+                            g_ctx.isAnimated = false;
+                            g_ctx.currentAnimationFrame = 0;
 
-                        g_ctx.zoomFactor = 1.0f;
-                        g_ctx.offsetX = 0;
-                        g_ctx.offsetY = 0;
+                            // Clear staged pixel buffers from any in-progress load
+                            for (auto& frame : g_ctx.stagedFrames) {
+                                SecureZeroByteVector(frame);
+                            }
+                            g_ctx.stagedFrames.clear();
+                            g_ctx.stagedFrames.shrink_to_fit();
+                            g_ctx.stagedDelays.clear();
+                            g_ctx.stagedDelays.shrink_to_fit();
+                            g_ctx.stagedWidth = 0;
+                            g_ctx.stagedHeight = 0;
 
-                        SetWindowTextW(g_ctx.hWnd, L"Clipboard Image");
-                        InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
+                            // clear file context
+                            g_ctx.imageFiles.clear();
+                            g_ctx.currentImageIndex = -1;
+                            g_ctx.currentDirectory = L"";
+                            g_ctx.loadingFilePath = L"Clipboard Image";
+                            g_ctx.originalContainerFormat = GUID_ContainerFormatPng;
+
+                            g_ctx.zoomFactor = 1.0f;
+                            g_ctx.offsetX = 0;
+                            g_ctx.offsetY = 0;
+
+                            // stop animations
+                            KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
+
+                            g_ctx.isLoading = false;
+
+                            SetWindowTextW(g_ctx.hWnd, L"Clipboard Image");
+                            InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
+                        }
                     }
                 }
             }

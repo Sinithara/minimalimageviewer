@@ -23,6 +23,7 @@ void CenterImage(bool resetZoom) {
         g_ctx.wicConverter = g_ctx.wicConverterOriginal;
         g_ctx.d2dBitmap = nullptr;
         g_ctx.animationD2DBitmaps.clear();
+        g_ctx.animationD2DBitmaps.shrink_to_fit();
     }
     FitImageToWindow();
     InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
@@ -49,6 +50,7 @@ void SetActualSize() {
         g_ctx.wicConverter = g_ctx.wicConverterOriginal;
         g_ctx.d2dBitmap = nullptr;
         g_ctx.animationD2DBitmaps.clear();
+        g_ctx.animationD2DBitmaps.shrink_to_fit();
     }
     InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
 }
@@ -59,6 +61,12 @@ void CleanupCurrentImage() {
     KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
     KillTimer(g_ctx.hWnd, OCR_MESSAGE_TIMER_ID);
     KillTimer(g_ctx.hWnd, AUTO_REFRESH_TIMER_ID);
+
+    // Close properties window (frees its heap-allocated ImageProperties)
+    if (g_ctx.hPropsWnd) {
+        DestroyWindow(g_ctx.hPropsWnd);
+        g_ctx.hPropsWnd = nullptr;
+    }
 
     {
         CriticalSectionLock lock(g_ctx.wicMutex);
@@ -94,8 +102,9 @@ void CleanupCurrentImage() {
     g_ctx.currentAnimationFrame = 0;
     g_ctx.isAnimated = false;
 
-    // F. Securely zero the loading file path
+    // F. Securely zero file path strings
     SecureZeroWString(g_ctx.loadingFilePath);
+    SecureZeroWString(g_ctx.currentFilePathOverride);
 
     // G. Container format
     g_ctx.originalContainerFormat = GUID_NULL;

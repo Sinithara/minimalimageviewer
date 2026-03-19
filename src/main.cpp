@@ -112,6 +112,49 @@ void CleanupCurrentImage() {
     // H. Loading state
     g_ctx.isLoading = false;
     g_ctx.lastWriteTime = { 0 };
+
+    // I. OCR message (contains text extracted from the previous image)
+    SecureZeroWString(g_ctx.ocrMessage);
+    g_ctx.isOcrMessageVisible = false;
+    g_ctx.ocrMessageStartTime = 0;
+
+    // J. Eyedropper / color picker derived data from previous image
+    g_ctx.hoveredColor = 0;
+    SecureZeroWString(g_ctx.colorStringRgb);
+    SecureZeroWString(g_ctx.colorStringHex);
+    g_ctx.didCopyColor = false;
+    g_ctx.isEyedropperActive = false;
+
+    // K. OCR selection state
+    g_ctx.isSelectingOcrRect = false;
+    g_ctx.isDraggingOcrRect = false;
+    g_ctx.ocrStartPoint = { 0 };
+    g_ctx.ocrRectWindow = { 0 };
+
+    // L. Edit state (reset so cleanup is self-contained, not dependent on CenterImage)
+    g_ctx.rotationAngle = 0;
+    g_ctx.isFlippedHorizontal = false;
+    g_ctx.isGrayscale = false;
+    g_ctx.brightness = 0.0f;
+    g_ctx.contrast = 1.0f;
+    g_ctx.saturation = 1.0f;
+
+    // M. Crop state
+    g_ctx.isCropMode = false;
+    g_ctx.isCropActive = false;
+    g_ctx.isCropPending = false;
+    g_ctx.isSelectingCropRect = false;
+    g_ctx.cropStartPoint = { 0 };
+    g_ctx.cropRectWindow = { 0 };
+    g_ctx.cropRectLocal = { 0 };
+
+    // N. Staged directory scan results (may linger from a previous aborted load)
+    for (auto& path : g_ctx.stagedImageFiles) {
+        SecureZeroWString(path);
+    }
+    g_ctx.stagedImageFiles.clear();
+    g_ctx.stagedImageFiles.shrink_to_fit();
+    g_ctx.stagedFoundIndex = -1;
 }
 
 void CleanupImageData() {

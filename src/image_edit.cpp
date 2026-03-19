@@ -44,12 +44,10 @@ ComPtr<IWICBitmapSource> ApplyImageEffects(ComPtr<IWICBitmapSource> inSource) {
     UINT stride = 0;
     BYTE* pPixels = nullptr;
     if (FAILED(lock->GetStride(&stride)) || FAILED(lock->GetDataPointer(&bufferSize, &pPixels)) || pPixels == nullptr) {
-        lock->Release();
         return inSource;
     }
 
     if (FAILED(inSource->CopyPixels(&rc, stride, bufferSize, pPixels))) {
-        lock->Release();
         return inSource;
     }
 
@@ -103,8 +101,6 @@ ComPtr<IWICBitmapSource> ApplyImageEffects(ComPtr<IWICBitmapSource> inSource) {
             pPixel[2] = clampf(r_new);
         }
     }
-
-    lock->Release();
 
     return ComPtr<IWICBitmapSource>(newBitmap);
 }

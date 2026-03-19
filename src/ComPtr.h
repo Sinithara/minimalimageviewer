@@ -1,5 +1,6 @@
 #pragma once
 #include <unknwn.h>
+#include <memory>
 template <typename T>
 class ComPtr {
 public:
@@ -51,7 +52,7 @@ public:
         return *this = other.ptr;
     }
     ComPtr<T>& operator=(ComPtr<T>&& other) noexcept {
-        if (this != &other) {
+        if (this != std::addressof(other)) {
             if (ptr) {
                 ptr->Release();
             }

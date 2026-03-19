@@ -400,6 +400,7 @@ void Render() {
                     &g_ctx.d2dBitmap
                 );
                 g_ctx.animationD2DBitmaps.clear();
+                g_ctx.animationD2DBitmaps.shrink_to_fit();
             }
             bitmapToDraw = g_ctx.d2dBitmap;
             hasImage = (g_ctx.wicConverter != nullptr);

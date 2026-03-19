@@ -53,6 +53,113 @@ void SetActualSize() {
     InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
 }
 
+void CleanupImageData() {
+    // A. Stop background threads and timers
+    CleanupLoadingThread();
+    KillTimer(g_ctx.hWnd, ANIMATION_TIMER_ID);
+
+    {
+        CriticalSectionLock lock(g_ctx.wicMutex);
+
+        // B. Securely zero raw pixel staging buffers before releasing
+        for (auto& frame : g_ctx.stagedFrames) {
+            SecureZeroByteVector(frame);
+        }
+        g_ctx.stagedFrames.clear();
+        g_ctx.stagedFrames.shrink_to_fit();
+        g_ctx.stagedDelays.clear();
+        g_ctx.stagedDelays.shrink_to_fit();
+        g_ctx.stagedWidth = 0;
+        g_ctx.stagedHeight = 0;
+
+        // C. Release WIC COM objects holding decoded pixel data
+        g_ctx.wicConverter = nullptr;
+        g_ctx.wicConverterOriginal = nullptr;
+        g_ctx.animationFrameConverters.clear();
+        g_ctx.animationFrameConverters.shrink_to_fit();
+        g_ctx.preloadedNextConverter = nullptr;
+        g_ctx.preloadedPrevConverter = nullptr;
+
+        // D. Release Direct2D GPU bitmaps
+        g_ctx.d2dBitmap = nullptr;
+        g_ctx.animationD2DBitmaps.clear();
+        g_ctx.animationD2DBitmaps.shrink_to_fit();
+    }
+
+    // E. Animation metadata
+    g_ctx.animationFrameDelays.clear();
+    g_ctx.animationFrameDelays.shrink_to_fit();
+    g_ctx.currentAnimationFrame = 0;
+    g_ctx.isAnimated = false;
+
+    // F. Securely zero all file path strings
+    SecureZeroWString(g_ctx.loadingFilePath);
+    for (auto& path : g_ctx.imageFiles) {
+        SecureZeroWString(path);
+    }
+    g_ctx.imageFiles.clear();
+    g_ctx.imageFiles.shrink_to_fit();
+    for (auto& path : g_ctx.stagedImageFiles) {
+        SecureZeroWString(path);
+    }
+    g_ctx.stagedImageFiles.clear();
+    g_ctx.stagedImageFiles.shrink_to_fit();
+    SecureZeroWString(g_ctx.currentFilePathOverride);
+    SecureZeroWString(g_ctx.currentDirectory);
+    g_ctx.currentImageIndex = -1;
+    g_ctx.stagedFoundIndex = -1;
+
+    // G. Eyedropper / color picker derived data
+    g_ctx.hoveredColor = 0;
+    SecureZeroWString(g_ctx.colorStringRgb);
+    SecureZeroWString(g_ctx.colorStringHex);
+    g_ctx.didCopyColor = false;
+    g_ctx.isEyedropperActive = false;
+
+    // H. OCR message
+    SecureZeroWString(g_ctx.ocrMessage);
+    g_ctx.isOcrMessageVisible = false;
+
+    // I. Edit state
+    g_ctx.originalContainerFormat = GUID_NULL;
+    g_ctx.preloadedNextFormat = GUID_NULL;
+    g_ctx.preloadedPrevFormat = GUID_NULL;
+    g_ctx.brightness = 0.0f;
+    g_ctx.contrast = 1.0f;
+    g_ctx.saturation = 1.0f;
+    g_ctx.savedBrightness = 0.0f;
+    g_ctx.savedContrast = 1.0f;
+    g_ctx.savedSaturation = 1.0f;
+    g_ctx.rotationAngle = 0;
+    g_ctx.isFlippedHorizontal = false;
+    g_ctx.isGrayscale = false;
+    g_ctx.isCropActive = false;
+    g_ctx.isCropMode = false;
+    g_ctx.isSelectingCropRect = false;
+    g_ctx.isCropPending = false;
+    g_ctx.cropRectWindow = { 0 };
+    g_ctx.cropRectLocal = { 0 };
+    g_ctx.cropStartPoint = { 0 };
+    g_ctx.isSelectingOcrRect = false;
+    g_ctx.isDraggingOcrRect = false;
+    g_ctx.ocrStartPoint = { 0 };
+    g_ctx.ocrRectWindow = { 0 };
+
+    // J. View state
+    g_ctx.zoomFactor = 1.0f;
+    g_ctx.offsetX = 0.0f;
+    g_ctx.offsetY = 0.0f;
+    g_ctx.isOsdVisible = false;
+    g_ctx.isLoading = false;
+    g_ctx.lastWriteTime = { 0 };
+
+    // K. Window title — remove file path
+    if (g_ctx.hWnd) {
+        SetWindowTextW(g_ctx.hWnd, L"Minimal Image Viewer");
+        InvalidateRect(g_ctx.hWnd, nullptr, FALSE);
+    }
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
     g_ctx.hInst = hInstance;
 
@@ -173,12 +280,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR 
         DispatchMessage(&msg);
     }
 
-    CleanupLoadingThread();
-    g_ctx.wicConverter = nullptr;
-    g_ctx.wicConverterOriginal = nullptr;
-    g_ctx.d2dBitmap = nullptr;
-    g_ctx.animationFrameConverters.clear();
-    g_ctx.animationD2DBitmaps.clear();
+    CleanupImageData();
     g_ctx.textBrush = nullptr;
     g_ctx.textFormat = nullptr;
     g_ctx.renderTarget = nullptr;

@@ -285,3 +285,24 @@ void ReadSettings(const std::wstring& path, RECT& rect, bool& fullscreen, bool& 
 void WriteSettings(const std::wstring& path, const RECT& rect, bool fullscreen, bool singleInstance, bool alwaysOnTop);
 
 HRESULT CreateDecoderFromFile(const wchar_t* filePath, IWICBitmapDecoder** ppDecoder);
+
+// Securely zero a wstring's backing buffer before clearing it
+inline void SecureZeroWString(std::wstring& s) {
+    if (!s.empty()) {
+        SecureZeroMemory(&s[0], s.size() * sizeof(wchar_t));
+        s.clear();
+        s.shrink_to_fit();
+    }
+}
+
+// Securely zero a byte vector's backing buffer before clearing it
+inline void SecureZeroByteVector(std::vector<BYTE>& v) {
+    if (!v.empty()) {
+        SecureZeroMemory(v.data(), v.size());
+        v.clear();
+        v.shrink_to_fit();
+    }
+}
+
+// Wipe all image data from memory (pixels, COM objects, paths, metadata, derived data)
+void CleanupImageData();
